@@ -13,6 +13,7 @@ app.use(express.static('public'));
 let players = [];
 let catcherId = null;
 let timeLeft = 60;
+let countdown;
 const catchCooldown = 1000; // Cooldown period in milliseconds
 let lastCatchTime = 0; // Single cooldown timer for catching
 
@@ -36,6 +37,9 @@ function handleDisconnection(socketId) {
     if (socketId === catcherId) {
         assignNewCatcher();
     }
+    
+    if (players.length == 0)
+        clearInterval(countdown);
 
     // Notify all clients about the updated player list
     io.emit('updatePlayers', players);
@@ -57,6 +61,18 @@ io.on('connection', (socket) => {
     if (catcherId === null && players.length === 1) {
         catcherId = socket.id;
         newPlayer.isCatcher = true;
+        clearInterval(countdown);
+        timeLeft = 60;
+        countdown = setInterval(() => {
+            timeLeft--;
+            io.emit('updateTimer', timeLeft);
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                io.emit('endRound', { winner: catcherId });
+                catcherId = null;
+                timeLeft = 60;
+            }
+        }, 1000);
     }
 
     io.emit('updatePlayers', players);
@@ -81,17 +97,6 @@ io.on('connection', (socket) => {
 
     if (catcherId === null && players.length > 0) {
         assignNewCatcher();
-
-        const countdown = setInterval(() => {
-            timeLeft--;
-            io.emit('updateTimer', timeLeft);
-            if (timeLeft <= 0) {
-                clearInterval(countdown);
-                io.emit('endRound', { winner: catcherId });
-                catcherId = null;
-                timeLeft = 60;
-            }
-        }, 1000);
     }
 });
 
