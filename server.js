@@ -13,9 +13,10 @@ app.use(express.static('public'));
 let players = [];
 let catcherId = null;
 let timeLeft = 60;
-let countdown;
 const catchCooldown = 1000; // Cooldown period in milliseconds
 let lastCatchTime = 0; // Single cooldown timer for catching
+
+const tickRate = 1000 / 60; // 60 updates per second
 
 function assignNewCatcher() {
     const availablePlayers = players.filter(p => p.id !== catcherId);
@@ -37,9 +38,6 @@ function handleDisconnection(socketId) {
     if (socketId === catcherId) {
         assignNewCatcher();
     }
-    
-    if (players.length == 0)
-        clearInterval(countdown);
 
     // Notify all clients about the updated player list
     io.emit('updatePlayers', players);
@@ -61,18 +59,6 @@ io.on('connection', (socket) => {
     if (catcherId === null && players.length === 1) {
         catcherId = socket.id;
         newPlayer.isCatcher = true;
-        clearInterval(countdown);
-        timeLeft = 60;
-        countdown = setInterval(() => {
-            timeLeft--;
-            io.emit('updateTimer', timeLeft);
-            if (timeLeft <= 0) {
-                clearInterval(countdown);
-                io.emit('endRound', { winner: catcherId });
-                catcherId = null;
-                timeLeft = 60;
-            }
-        }, 1000);
     }
 
     io.emit('updatePlayers', players);
@@ -94,11 +80,20 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         handleDisconnection(socket.id);
     });
+});
 
-    if (catcherId === null && players.length > 0) {
+// Main game loop
+setInterval(() => {
+    io.emit('updatePlayers', players);
+    io.emit('updateTimer', timeLeft);
+    timeLeft--;
+    if (timeLeft <= 0) {
+        io.emit('endRound', { winner: catcherId });
+        catcherId = null;
+        timeLeft = 60;
         assignNewCatcher();
     }
-});
+}, tickRate);
 
 function checkCatching(catcher) {
     players.forEach(player => {

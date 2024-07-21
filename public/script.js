@@ -41,9 +41,6 @@ function calculateDirection(mouseX, mouseY) {
         const canvasCenterX = canvasWidth / 2;
         const canvasCenterY = canvasHeight / 2;
 
-        const playerX = player.x - canvasCenterX;
-        const playerY = player.y - canvasCenterY;
-
         const dx = mouseX - canvasCenterX;
         const dy = mouseY - canvasCenterY;
 
