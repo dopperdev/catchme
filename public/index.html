@@ -1,50 +1,25 @@
-<!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catch Me Game</title>
     <style>
-        body {
+        body, html {
+            height: 100%;
             margin: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-        }
-
-        #timer {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            font-size: 24px;
-            color: white;
-            background-color: black;
-            padding: 5px;
-            border-radius: 5px;
-        }
-
-        #gameArea {
-            position: relative;
-            width: 800px;
-            height: 600px;
-            border: 1px solid #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             background-color: #f0f0f0;
         }
-
-        .player {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background-color: red;
+        canvas {
+            background-color: #fff;
+            border: 1px solid black;
         }
     </style>
 </head>
-
 <body>
-    <div id="timer">Time Left: 60</div>
-    <div id="gameArea"></div>
-
+    <canvas id="game" width="800" height="600"></canvas>
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
