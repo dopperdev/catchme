@@ -1,27 +1,18 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catch Me Game</title>
+    <title>Catch Me</title>
     <style>
-        body, html {
-            height: 100%;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #f0f0f0;
-        }
         canvas {
-            background-color: #fff;
             border: 1px solid black;
         }
     </style>
 </head>
 <body>
-    <canvas id="game" width="800" height="600"></canvas>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js"></script>
+    <script src="js/game.js"></script>
 </body>
-
 </html>

@@ -6,69 +6,80 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-app.use(express.static('public'));
-
 let players = {};
+let catcherId = null;
+const gameDuration = 120000; // 2 minutes
 
 io.on('connection', (socket) => {
-    console.log('A user connected: ' + socket.id);
+    console.log(`Player connected: ${socket.id}`);
+
     players[socket.id] = {
-        x: Math.floor(Math.random() * 500),
-        y: Math.floor(Math.random() * 500),
-        isCatcher: false,
-        isCaught: false
+        id: socket.id,
+        x: Math.random() * 800,
+        y: Math.random() * 600,
+        speed: 2,
+        target: { x: 0, y: 0 }
     };
 
-    socket.on('movement', (data) => {
+    if (!catcherId || Object.keys(players).length === 1) {
+        catcherId = socket.id;
+        io.to(catcherId).emit('youAreCatcher');
+    }
+
+    io.emit('updatePlayers', { players, catcherId });
+
+    socket.on('setTarget', (data) => {
         if (players[socket.id]) {
-            players[socket.id].x += data.x;
-            players[socket.id].y += data.y;
-            checkForCatches();
-            io.emit('positionUpdate', players);
+            players[socket.id].target = data;
+        }
+    });
+
+    socket.on('tag', (id) => {
+        if (socket.id === catcherId && players[id]) {
+            catcherId = id;
+            io.to(catcherId).emit('youAreCatcher');
         }
     });
 
     socket.on('disconnect', () => {
+        console.log(`Player disconnected: ${socket.id}`);
         delete players[socket.id];
-        io.emit('positionUpdate', players);
-        console.log('User disconnected: ' + socket.id);
-    });
-
-    chooseCatcher();
-});
-
-function chooseCatcher() {
-    // Check if a catcher already exists
-    const catcherExists = Object.keys(players).some(id => players[id].isCatcher);
-
-    if (!catcherExists) {
-        let ids = Object.keys(players);
-        let randomId = ids[Math.floor(Math.random() * ids.length)];
-        ids.forEach(id => {
-            players[id].isCatcher = (id === randomId);
-        });
-        console.log(`New catcher chosen: ${randomId}`);
-        io.emit('gameUpdate', players);
-    }
-}
-
-
-function checkForCatches() {
-    let catcherId = Object.keys(players).find(id => players[id].isCatcher);
-    if (!catcherId) return;
-
-    Object.keys(players).forEach(id => {
-        if (id !== catcherId && !players[id].isCaught) {
-            let dx = players[id].x - players[catcherId].x;
-            let dy = players[id].y - players[catcherId].y;
-            if (Math.sqrt(dx * dx + dy * dy) < 20) { // 20 pixels proximity to catch
-                players[id].isCaught = true;
-                console.log(`Player ${id} has been caught by ${catcherId}`);
+        if (socket.id === catcherId) {
+            const playerIds = Object.keys(players);
+            if (playerIds.length > 0) {
+                catcherId = playerIds[Math.floor(Math.random() * playerIds.length)];
+                io.to(catcherId).emit('youAreCatcher');
+            } else {
+                catcherId = null;
             }
         }
+        io.emit('updatePlayers', { players, catcherId });
     });
+});
+
+function updatePlayerPositions() {
+    for (let id in players) {
+        const player = players[id];
+        const dx = player.target.x - player.x;
+        const dy = player.target.y - player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > player.speed) {
+            player.x += dx / distance * player.speed;
+            player.y += dy / distance * player.speed;
+        }
+    }
+    io.emit('updatePlayers', { players, catcherId });
 }
 
+setInterval(updatePlayerPositions, 1000 / 60); // Update 60 times per second
+
+setTimeout(() => {
+    io.emit('gameOver', { winner: catcherId });
+}, gameDuration);
+
+app.use(express.static('public'));
+
 server.listen(3000, () => {
-    console.log('Server listening on *:3000');
+    console.log('Server is running on port 3000');
 });
