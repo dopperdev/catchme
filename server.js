@@ -70,6 +70,8 @@ io.on('connection', (socket) => {
         io.to(catcherId).emit('youAreCatcher');
     }
 
+    socket.emit('initialize', { id: socket.id, radius: playerRadius, speed: players[socket.id].speed });
+
     emitUpdatePlayers();
 
     socket.on('setTarget', (data) => {
@@ -176,6 +178,8 @@ function updatePlayerPositions() {
             player.score += 0.01;
         else
             player.score -= 0.05;
+
+        emitUpdatePlayer(player);
     }
 
     emitUpdatePlayers();
@@ -213,6 +217,10 @@ function emitUpdatePlayers() {
         timeNow: timenow
     };
     io.emit('updatePlayers', payload);
+}
+
+function emitUpdatePlayer(player) {
+    io.to(player.id).emit('updatePlayer', { x: player.x, y: player.y, score: player.score, color: player.color, key: player.key, speed: player.speed });
 }
 
 // Function to update the leaderboard

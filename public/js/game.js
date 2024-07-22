@@ -12,7 +12,7 @@ let isCatcher = false;
 let target = { x: 0, y: 0 };
 let catcherId = null;
 let powerUps = [];
-let player = { x: 0, y: 0, radius: 50, color: 'blue', key: 0 };
+let player = { x: 0, y: 0, radius: 50, color: 'blue', key: 0, speed: 2 };
 let leaderboard = [];
 let trails = []; // Array to store bubble positions
 let burstEffects = []; // Array to store burst effects
@@ -45,18 +45,18 @@ canvas.addEventListener('mousemove', (event) => {
 socket.on('initialize', (data) => {
     player.radius = data.radius;
     player.color = data.color;
+    player.speed = data.speed;
     player.key = data.key;
-    draw();
 });
 
 socket.on('updatePlayer', (data) => {
-    player.x = deobfuscatePosition(data.x, data.key);
-    player.y = deobfuscatePosition(data.y, data.key);
+    player.x = data.x;
+    player.y = data.y;
     player.score = data.score;
     player.color = data.color;
+    player.speed = data.speed;
     isCatcher = data.isCatcher;
     player.key = data.key;
-    draw();
 });
 
 socket.on('updatePlayers', updatedData => {
@@ -80,12 +80,10 @@ socket.on('updatePlayers', updatedData => {
     powerUps = updatedData.powerUps;
     player = players[socket.id]; // Update the player's own data
     serverTime = updatedData.timeNow;
-    draw();
 });
 
 socket.on('updatePowerUps', (updatedPowerUps) => {
     powerUps = updatedPowerUps;
-    draw();
 });
 
 socket.on('youAreCatcher', () => {
