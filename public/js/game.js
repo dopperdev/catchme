@@ -108,6 +108,22 @@ socket.on('powerUpCollected', (data) => {
     }
 });
 
+function updateLocalPlayer() {
+    const dx = target.x - player.x;
+    const dy = target.y - player.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance > player.speed) {
+        player.x += dx / distance * player.speed;
+        player.y += dy / distance * player.speed;
+    }
+    // Ensure player stays within map boundaries
+    player.x = Math.max(player.radius, Math.min(mapWidth - player.radius, player.x));
+    player.y = Math.max(player.radius, Math.min(mapHeight - player.radius, player.y));
+    // Draw the updated scene
+    draw();
+    requestAnimationFrame(updateLocalPlayer);
+}
+
 // Draw background grid and map boundaries
 function drawBackground(cameraOffsetX, cameraOffsetY) {
     const gridSize = 50; // Size of the grid squares
@@ -369,3 +385,5 @@ canvas.addEventListener('click', () => {
         socket.emit('attemptTag');
     }
 });
+
+requestAnimationFrame(updateLocalPlayer);
