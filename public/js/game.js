@@ -8,11 +8,10 @@ const mapWidth = 1600; // Width of the map
 const mapHeight = 1200; // Height of the map
 
 let players = {};
-let isCatcher = false;
 let target = { x: 0, y: 0 };
 let catcherId = null;
 let powerUps = [];
-let player = { x: 0, y: 0, radius: 50, color: 'blue', key: 0, speed: 2 };
+let player = {};
 let leaderboard = [];
 let trails = []; // Array to store bubble positions
 let burstEffects = []; // Array to store burst effects
@@ -43,10 +42,15 @@ canvas.addEventListener('mousemove', (event) => {
 });
 
 socket.on('initialize', (data) => {
+    player.id = data.id;
     player.radius = data.radius;
     player.color = data.color;
     player.speed = data.speed;
     player.key = data.key;
+    if (!trails[player.id])
+        trails[player.id] = []; // Initialize trail for new player
+
+    requestAnimationFrame(updateLocalPlayer);
 });
 
 socket.on('updatePlayer', (data) => {
@@ -55,7 +59,6 @@ socket.on('updatePlayer', (data) => {
     player.score = data.score;
     player.color = data.color;
     player.speed = data.speed;
-    isCatcher = data.isCatcher;
     player.key = data.key;
 });
 
@@ -87,7 +90,7 @@ socket.on('updatePowerUps', (updatedPowerUps) => {
 });
 
 socket.on('youAreCatcher', () => {
-    isCatcher = true;
+    catcherId = socket.id;
     console.log('You are the Catcher!');
 });
 
@@ -187,28 +190,37 @@ function draw() {
 
     // Draw players
     for (let id in players) {
-        const p = players[id];
-        if (p.invisible > serverTime) {
-            if (id !== socket.id) continue;
-            drawInvisiblePlayer(p, cameraOffsetX, cameraOffsetY);
-        } else {
-            context.save();
-
-            drawPlayerTrail(p, cameraOffsetX, cameraOffsetY);
-
-            if (id === catcherId)
-                drawCatcherMarker(p, cameraOffsetX, cameraOffsetY);
-
-            context.fillStyle = p.color;
-
-            // Draw jelly effect
-            drawJelly(p, cameraOffsetX, cameraOffsetY, id === catcherId);
-
-            if (p.shield > serverTime)
-                drawShield(p, cameraOffsetX, cameraOffsetY);
-
-            context.restore();
+        if (id !== socket.id) {
+            const p = players[id];
+            drawPlayer(p, id, cameraOffsetX, cameraOffsetY);
         }
+    }
+
+
+    drawPlayer(player, socket.id, cameraOffsetX, cameraOffsetY);
+}
+
+function drawPlayer(p, id, offsetX, offsetY) {
+    if (p.invisible > serverTime) {
+        if (id !== socket.id) return;
+        drawInvisiblePlayer(p, offsetX, offsetY);
+    } else {
+        context.save();
+
+        drawPlayerTrail(p, offsetX, offsetY);
+
+        if (id === catcherId)
+            drawCatcherMarker(p, offsetX, offsetY);
+
+        context.fillStyle = p.color;
+
+        // Draw jelly effect
+        drawJelly(p, offsetX, offsetY, id === catcherId);
+
+        if (p.shield > serverTime)
+            drawShield(p, offsetX, offsetY);
+
+        context.restore();
     }
 }
 
@@ -379,9 +391,7 @@ function drawLeaderboard() {
 
 // Check if the Catcher has tagged a player
 canvas.addEventListener('click', () => {
-    if (isCatcher) {
+    if (catcherId == socket.id) {
         socket.emit('attemptTag');
     }
 });
-
-requestAnimationFrame(updateLocalPlayer);
