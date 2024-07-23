@@ -59,7 +59,7 @@ wss.on('connection', ws => {
         x: Math.random() * mapWidth,
         y: Math.random() * mapHeight,
         speed: 2,
-        target: { x: 0, y: 0 },
+        direction: { x: 0, y: 0 },
         radius: playerRadius,
         shield: 0,
         invisible: 0,
@@ -99,9 +99,10 @@ wss.on('connection', ws => {
     ws.on('message', message => {
         const parsedMessage = JSON.parse(message);
         switch (parsedMessage.type) {
-            case 'setTarget':
-                if (players[id]) {
-                    players[id].target = parsedMessage.data;
+            case 'setDirection':
+                const { x, y } = parsedMessage.data;
+                if (players[id] && verifyDirection(x, y)) {
+                    players[id].direction = { x, y };
                 }
                 break;
             case 'attemptTag':
@@ -197,17 +198,17 @@ wss.on('connection', ws => {
     // });
 });
 
+function verifyDirection(x, y) {
+    const length = Math.sqrt(x * x + y * y);
+    return length <= 1.1 && length >= 0.9; // Allowing some margin of error for floating point calculations
+}
+
+
 function updatePlayerPositions() {
     for (let id in players) {
         const player = players[id];
-        const dx = player.target.x - player.x;
-        const dy = player.target.y - player.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance > player.speed) {
-            player.x += dx / distance * player.speed;
-            player.y += dy / distance * player.speed;
-        }
+        player.x += player.direction.x * player.speed;
+        player.y += player.direction.y * player.speed;
 
         // Ensure player stays within map boundaries
         player.x = Math.max(player.radius, Math.min(mapWidth - player.radius, player.x));

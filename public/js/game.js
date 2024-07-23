@@ -3,6 +3,8 @@
     //     transports: ['websocket'] // Only use WebSocket transport
     // });
     const ws = new WebSocket('wss://catchme.onrender.com');
+    // const ws = new WebSocket('ws://localhost:3000');
+
     const canvas = document.getElementById('gameCanvas');
     const context = canvas.getContext('2d');
 
@@ -16,7 +18,7 @@
     const mapHeight = 1200; // Height of the map
 
     let players = {};
-    let target = { x: 0, y: 0 };
+    let direction = { x: 0, y: 0 };
     let catcherId = null;
     let powerUps = [];
     let player = {};
@@ -44,10 +46,19 @@
         const rect = canvas.getBoundingClientRect();
         const cameraOffsetX = canvas.width / 2 - player.x;
         const cameraOffsetY = canvas.height / 2 - player.y;
-        target.x = event.clientX - rect.left - cameraOffsetX;
-        target.y = event.clientY - rect.top - cameraOffsetY;
+        const mouseX = event.clientX - rect.left - cameraOffsetX;
+        const mouseY = event.clientY - rect.top - cameraOffsetY;
+
+        const dx = mouseX - player.x;
+        const dy = mouseY - player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 0) {
+            direction.x = dx / distance;
+            direction.y = dy / distance;
+        }
         // socket.emit('setTarget', target);
-        ws.send(JSON.stringify({ type: 'setTarget', data: target }));
+        ws.send(JSON.stringify({ type: 'setDirection', data: direction }));
     });
 
     // WebSocket event listeners
@@ -83,7 +94,6 @@
                 resizeCanvas();
                 break;
             case 'updatePlayer':
-                console.log("ASD")
                 player.x = message.data.x;
                 player.y = message.data.y;
                 player.score = message.data.score;
@@ -218,13 +228,15 @@
     // });
 
     function updateLocalPlayer() {
-        const dx = target.x - player.x;
-        const dy = target.y - player.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance > player.speed) {
-            player.x += dx / distance * player.speed;
-            player.y += dy / distance * player.speed;
-        }
+        // const dx = target.x - player.x;
+        // const dy = target.y - player.y;
+        // const distance = Math.sqrt(dx * dx + dy * dy);
+        // if (distance > player.speed) {
+        //     player.x += dx / distance * player.speed;
+        //     player.y += dy / distance * player.speed;
+        // }
+        player.x += direction.x * player.speed;
+        player.y += direction.y * player.speed;
         // Ensure player stays within map boundaries
         player.x = Math.max(player.radius, Math.min(mapWidth - player.radius, player.x));
         player.y = Math.max(player.radius, Math.min(mapHeight - player.radius, player.y));
