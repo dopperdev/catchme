@@ -220,7 +220,17 @@ function emitUpdatePlayers() {
 }
 
 function emitUpdatePlayer(player) {
-    io.to(player.id).emit('updatePlayer', { x: player.x, y: player.y, score: player.score, color: player.color, key: player.key, speed: player.speed });
+    io.to(player.id).emit('updatePlayer', {
+        x: player.x,
+        y: player.y,
+        score: player.score,
+        color: player.color,
+        radius: player.radius,
+        invisible: player.invisible,
+        shield: player.shield,
+        key: player.key,
+        speed: player.speed
+    });
 }
 
 // Function to update the leaderboard

@@ -59,29 +59,34 @@ socket.on('updatePlayer', (data) => {
     player.score = data.score;
     player.color = data.color;
     player.speed = data.speed;
+    player.invisible = data.invisible;
+    player.shield = data.shield;
+    player.radius = data.radius;
     player.key = data.key;
 });
 
 socket.on('updatePlayers', updatedData => {
     players = {};
     for (let p of updatedData.players) {
-        players[p.id] = {
-            id: p.id,
-            x: deobfuscatePosition(p.x, p.key),
-            y: deobfuscatePosition(p.y, p.key),
-            radius: p.radius,
-            shield: p.shield,
-            invisible: p.invisible,
-            score: p.score,
-            color: p.color,
-            key: p.key
+        if (p.id !== socket.id) {
+            players[p.id] = {
+                id: p.id,
+                x: deobfuscatePosition(p.x, p.key),
+                y: deobfuscatePosition(p.y, p.key),
+                radius: p.radius,
+                shield: p.shield,
+                invisible: p.invisible,
+                score: p.score,
+                color: p.color,
+                key: p.key
+            }
         };
         if (!trails[p.id])
             trails[p.id] = []; // Initialize trail for new player
     }
     catcherId = updatedData.catcherId;
     powerUps = updatedData.powerUps;
-    player = players[socket.id]; // Update the player's own data
+    // player = players[socket.id]; // Update the player's own data
     serverTime = updatedData.timeNow;
 });
 
@@ -324,7 +329,6 @@ function drawShield(player, offsetX, offsetY) {
 }
 
 function drawInvisiblePlayer(player, offsetX, offsetY) {
-    console.log('INVISILBIE')
     const time = Date.now() / 1000;
     context.save();
 
