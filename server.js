@@ -1,12 +1,12 @@
 const express = require('express');
-const http = require('http');
+const https = require('https');
 // const socketIo = require('socket.io');
 const WebSocket = require('ws');
 const crypto = require('crypto');
 const protobuf = require('protobufjs');
 
 const app = express();
-const server = http.createServer(app);
+const server = https.createServer(app)
 // const io = socketIo(server, {
 //     transports: ['websocket'],
 //     upgrade: false
