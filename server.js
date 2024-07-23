@@ -1,15 +1,17 @@
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
+// const socketIo = require('socket.io');
+const WebSocket = require('ws');
 const crypto = require('crypto');
 const protobuf = require('protobufjs');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
-    transports: ['websocket'],
-    upgrade: false
-});
+// const io = socketIo(server, {
+//     transports: ['websocket'],
+//     upgrade: false
+// });
+const wss = new WebSocket.Server({ server });
 
 const mapWidth = 1600; // Width of the map
 const mapHeight = 1200; // Height of the map
@@ -46,13 +48,14 @@ function obfuscatePosition(position, key) {
     return position ^ key;
 }
 
-io.on('connection', (socket) => {
-    console.log(`Player connected: ${socket.id}`);
+wss.on('connection', ws => {
+    const id = Math.random().toString(36).substring(2);
+    console.log(`Player connected: ${id}`);
 
     const key = crypto.randomBytes(4).readUInt32BE(0);
 
-    players[socket.id] = {
-        id: socket.id,
+    players[id] = {
+        id,
         x: Math.random() * mapWidth,
         y: Math.random() * mapHeight,
         speed: 2,
@@ -66,50 +69,81 @@ io.on('connection', (socket) => {
     };
 
     if (!catcherId || Object.keys(players).length === 1) {
-        catcherId = socket.id;
-        io.to(catcherId).emit('youAreCatcher');
+        catcherId = id;
+        // io.to(catcherId).emit('youAreCatcher');
+
+        ws.send(JSON.stringify({ type: 'youAreCatcher' }));
     }
 
-    socket.emit('initialize', { id: socket.id, radius: playerRadius, speed: players[socket.id].speed });
+    // socket.emit('initialize', { id: socket.id, radius: playerRadius, speed: players[socket.id].speed });
+    ws.id = id;
+    const payload = {
+        type: 'initialize',
+        data: {
+            id,
+            x: players[id].x,
+            y: players[id].y,
+            score: players[id].score,
+            color: players[id].color,
+            radius: players[id].radius,
+            invisible: players[id].invisible,
+            shield: players[id].shield,
+            key: players[id].key,
+            speed: players[id].speed
+        }
+    };
+    ws.send(JSON.stringify(payload));
 
     emitUpdatePlayers();
 
-    socket.on('setTarget', (data) => {
-        if (players[socket.id]) {
-            players[socket.id].target = data;
-        }
-    });
-
-    socket.on('attemptTag', () => {
-        if (socket.id === catcherId) {
-            for (let id in players) {
-                const now = Date.now();
-                if (id !== catcherId && players[id].invisible < now && players[id].shield < now) {
-                    const dx = players[id].x - players[catcherId].x;
-                    const dy = players[id].y - players[catcherId].y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < players[catcherId].radius * 2) { // Use the radius set on the server
-                        players[catcherId].score += 10; // Score for tagging a player
-                        players[id].score -= 20; // Decrease score for becoming the catcher
-                        catcherId = id;
-                        io.to(catcherId).emit('youAreCatcher');
-                        break;
-                    }
+    ws.on('message', message => {
+        const parsedMessage = JSON.parse(message);
+        switch (parsedMessage.type) {
+            case 'setTarget':
+                if (players[id]) {
+                    players[id].target = parsedMessage.data;
                 }
-            }
+                break;
+            case 'attemptTag':
+                if (id === catcherId) {
+                    for (let pid in players) {
+                        const now = Date.now();
+                        if (pid !== catcherId && players[pid].invisible < now && players[pid].shield < now) {
+                            const dx = players[pid].x - players[catcherId].x;
+                            const dy = players[pid].y - players[catcherId].y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            if (distance < players[catcherId].radius * 2) { // Use the radius set on the server
+                                players[catcherId].score += 10; // Score for tagging a player
+                                players[pid].score -= 20; // Decrease score for becoming the catcher
+                                catcherId = pid;
+                                wss.clients.forEach(client => {
+                                    if (client.readyState === WebSocket.OPEN && client.id === catcherId) {
+                                        client.send(JSON.stringify({ type: 'youAreCatcher' }));
+                                    }
+                                });
+                                break;
+                            }
+                        }
+                    }
 
-            emitUpdatePlayers();
+                    emitUpdatePlayers();
+                }
+                break;
         }
-    });
+    })
 
-    socket.on('disconnect', () => {
-        console.log(`Player disconnected: ${socket.id}`);
-        delete players[socket.id];
-        if (socket.id === catcherId) {
+    ws.on('close', () => {
+        console.log(`Player disconnected: ${id}`);
+        delete players[id];
+        if (id === catcherId) {
             const playerIds = Object.keys(players);
             if (playerIds.length > 0) {
                 catcherId = playerIds[Math.floor(Math.random() * playerIds.length)];
-                io.to(catcherId).emit('youAreCatcher');
+                wss.clients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN && client.id === catcherId) {
+                        client.send(JSON.stringify({ type: 'youAreCatcher' }));
+                    }
+                });
             } else {
                 catcherId = null;
             }
@@ -117,6 +151,50 @@ io.on('connection', (socket) => {
 
         emitUpdatePlayers();
     });
+
+    // socket.on('setTarget', (data) => {
+    //     if (players[socket.id]) {
+    //         players[socket.id].target = data;
+    //     }
+    // });
+
+    // socket.on('attemptTag', () => {
+    //     if (socket.id === catcherId) {
+    //         for (let id in players) {
+    //             const now = Date.now();
+    //             if (id !== catcherId && players[id].invisible < now && players[id].shield < now) {
+    //                 const dx = players[id].x - players[catcherId].x;
+    //                 const dy = players[id].y - players[catcherId].y;
+    //                 const distance = Math.sqrt(dx * dx + dy * dy);
+    //                 if (distance < players[catcherId].radius * 2) { // Use the radius set on the server
+    //                     players[catcherId].score += 10; // Score for tagging a player
+    //                     players[id].score -= 20; // Decrease score for becoming the catcher
+    //                     catcherId = id;
+    //                     io.to(catcherId).emit('youAreCatcher');
+    //                     break;
+    //                 }
+    //             }
+    //         }
+
+    //         emitUpdatePlayers();
+    //     }
+    // });
+
+    // socket.on('disconnect', () => {
+    //     console.log(`Player disconnected: ${socket.id}`);
+    //     delete players[socket.id];
+    //     if (socket.id === catcherId) {
+    //         const playerIds = Object.keys(players);
+    //         if (playerIds.length > 0) {
+    //             catcherId = playerIds[Math.floor(Math.random() * playerIds.length)];
+    //             io.to(catcherId).emit('youAreCatcher');
+    //         } else {
+    //             catcherId = null;
+    //         }
+    //     }
+
+    //     emitUpdatePlayers();
+    // });
 });
 
 function updatePlayerPositions() {
@@ -147,7 +225,12 @@ function updatePlayerPositions() {
                 powerUps.splice(i, 1); // Remove the power-up
 
                 // Emit event to trigger burst effect
-                io.to(player.id).emit('powerUpCollected', { id: player.id });
+                // io.to(player.id).emit('powerUpCollected', { id: player.id });
+                wss.clients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN && client.id === player.id) {
+                        client.send(JSON.stringify({ type: 'powerUpCollected', data: { id: player.id } }));
+                    }
+                });
 
                 // Apply power-up effects
                 switch (powerUp.type) {
@@ -187,62 +270,51 @@ function updatePlayerPositions() {
 
 function emitUpdatePlayers() {
     const timenow = Date.now();
-    const obfuscatedPlayers = [];
-    for (let id in players) {
-        const player = players[id];
-        obfuscatedPlayers.push({
-            id: player.id,
-            x: obfuscatePosition(player.x, player.key),
-            y: obfuscatePosition(player.y, player.key),
-            radius: player.radius,
-            shield: player.shield,
-            invisible: player.invisible,
-            score: player.score,
-            color: player.color,
-            key: player.key
-        });
-    }
-
-    const obfuscatedPowerUps = powerUps.map(pu => ({
-        type: pu.type,
-        x: pu.x,
-        y: pu.y,
-        radius: pu.radius
-    }));
 
     const payload = {
-        players: obfuscatedPlayers,
-        catcherId,
-        powerUps: obfuscatedPowerUps,
-        timeNow: timenow
+        type: 'updatePlayers',
+        data: {
+            players,
+            catcherId,
+            powerUps,
+            timeNow: timenow
+        }
     };
-    io.emit('updatePlayers', payload);
-}
+    // io.emit('updatePlayers', payload);
 
-function emitUpdatePlayer(player) {
-    io.to(player.id).emit('updatePlayer', {
-        x: player.x,
-        y: player.y,
-        score: player.score,
-        color: player.color,
-        radius: player.radius,
-        invisible: player.invisible,
-        shield: player.shield,
-        key: player.key,
-        speed: player.speed
+    const message = JSON.stringify(payload);
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
     });
 }
 
-// Function to update the leaderboard
-function updateLeaderboard() {
-    const leaderboard = Object.values(players)
-        .sort((a, b) => b.score - a.score)
-        .map(player => ({ id: player.id, score: player.score }));
-    io.emit('updateLeaderboard', leaderboard);
-}
+function emitUpdatePlayer(player) {
+    const payload = {
+        type: 'updatePlayer',
+        data: {
+            x: player.x,
+            y: player.y,
+            score: player.score,
+            color: player.color,
+            radius: player.radius,
+            invisible: player.invisible,
+            shield: player.shield,
+            key: player.key,
+            speed: player.speed
+        }
+    };
 
+    const message = JSON.stringify(payload);
+    // console.log(wss.clients);
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN && client.id == player.id) {
+            client.send(message);
+        }
+    });
+}
 setInterval(updatePlayerPositions, 1000 / 60); // Update 60 times per second
-setInterval(updateLeaderboard, leaderboardUpdateInterval); // Update leaderboard at intervals
 
 app.use(express.static('public'));
 
