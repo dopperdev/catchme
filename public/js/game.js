@@ -2,7 +2,7 @@
     // const socket = io({
     //     transports: ['websocket'] // Only use WebSocket transport
     // });
-    const ws = new WebSocket('ws://catchme.onrender.com');
+    const ws = new WebSocket('wss://catchme.onrender.com');
     const canvas = document.getElementById('gameCanvas');
     const context = canvas.getContext('2d');
 
