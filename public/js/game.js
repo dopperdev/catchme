@@ -2,7 +2,7 @@
     // const socket = io({
     //     transports: ['websocket'] // Only use WebSocket transport
     // });
-    const ws = new WebSocket('wss://catchme.onrender.com');
+    const ws = new WebSocket('wss://catchplay.vercel.app');
     // const ws = new WebSocket('ws://localhost:3000');
 
     const canvas = document.getElementById('gameCanvas');
