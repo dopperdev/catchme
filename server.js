@@ -317,7 +317,7 @@ function emitUpdatePlayer(player) {
 }
 setInterval(updatePlayerPositions, 1000 / 60); // Update 60 times per second
 
-app.use(express.static('public'));
+// app.use(express.static('public'));
 
 server.listen(3000, () => {
     console.log('Server is running on port 3000');
