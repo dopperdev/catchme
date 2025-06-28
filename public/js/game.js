@@ -26,6 +26,8 @@
     let trails = []; // Array to store bubble positions
     let burstEffects = []; // Array to store burst effects
     let serverTime = 0;
+    const POWER_UP_DURATION = 5000;
+    let activePowerUps = [];
     const numVertices = 60; // Number of vertices for the jelly shape
     const jellyVertices = [];
 
@@ -139,6 +141,7 @@
             case 'powerUpCollected':
                 if (message.data.id === player.id) {
                     burstEffects.push({ x: player.x, y: player.y, startTime: Date.now() });
+                    activePowerUps.push({ type: message.data.powerUpType, endTime: Date.now() + POWER_UP_DURATION });
                 }
                 break;
         }
@@ -318,6 +321,8 @@
 
 
         drawPlayer(player, player.id, cameraOffsetX, cameraOffsetY);
+
+        drawActivePowerUps();
     }
 
     function drawPlayer(p, id, offsetX, offsetY) {
@@ -483,6 +488,40 @@
             yellow: '255, 255, 0'
         };
         return colors[color] || '0, 0, 0'; // Default to black if color not found
+    }
+
+    function drawActivePowerUps() {
+        const iconSize = 30;
+        const margin = 10;
+        const now = Date.now();
+
+        // Remove expired power-ups
+        activePowerUps = activePowerUps.filter(p => p.endTime > now);
+
+        const types = [...new Set(activePowerUps.map(p => p.type))];
+        types.forEach((type, typeIndex) => {
+            const items = activePowerUps.filter(p => p.type === type);
+            items.forEach((item, itemIndex) => {
+                const x = canvas.width - margin - iconSize - typeIndex * (iconSize + margin);
+                const y = margin + itemIndex * (iconSize + 10);
+
+                const color = type === 'speed' ? 'green' : type === 'invisibility' ? 'purple' : 'yellow';
+
+                context.save();
+                context.fillStyle = color;
+                context.beginPath();
+                context.arc(x + iconSize / 2, y + iconSize / 2, iconSize / 2, 0, Math.PI * 2);
+                context.fill();
+
+                const remaining = Math.max(0, (item.endTime - now) / POWER_UP_DURATION);
+                context.strokeStyle = '#000';
+                context.lineWidth = 2;
+                context.strokeRect(x, y + iconSize + 2, iconSize, 4);
+                context.fillStyle = color;
+                context.fillRect(x, y + iconSize + 2, iconSize * remaining, 4);
+                context.restore();
+            });
+        });
     }
 
     // Draw burst effects
