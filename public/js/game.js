@@ -127,11 +127,13 @@
                 }
                 catcherId = decodedData.catcherId;
                 powerUps = decodedData.powerUps;
+                updatePowerUpsUI();
                 // player = players[player.id]; // Update the player's own data
                 serverTime = decodedData.timeNow;
                 break;
             case 'updatePowerUps':
                 powerUps = message.data;
+                updatePowerUpsUI();
                 break;
             case 'youAreCatcher':
                 catcherId = player.id;
@@ -140,6 +142,7 @@
                 if (message.data.id === player.id) {
                     burstEffects.push({ x: player.x, y: player.y, startTime: Date.now() });
                 }
+                updatePowerUpsUI();
                 break;
         }
     });
@@ -512,6 +515,28 @@
             playerElement.textContent = `${player.id}: ${player.score.toFixed(2)}`;
             leaderboardElement.appendChild(playerElement);
         });
+    }
+
+    const powerUpColors = {
+        speed: 'green',
+        invisibility: 'purple',
+        shield: 'yellow'
+    };
+
+    function updatePowerUpsUI() {
+        const ui = document.getElementById('powerups-ui');
+        if (!ui) return;
+        const counts = {};
+        for (const p of powerUps) {
+            counts[p.type] = (counts[p.type] || 0) + 1;
+        }
+        ui.innerHTML = '<h3>Power Ups</h3>';
+        for (const type in powerUpColors) {
+            const div = document.createElement('div');
+            div.textContent = `${type}: ${counts[type] || 0}`;
+            div.style.color = powerUpColors[type];
+            ui.appendChild(div);
+        }
     }
 
     // Check if the Catcher has tagged a player
