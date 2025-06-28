@@ -225,11 +225,15 @@ function updatePlayerPositions() {
                 // Apply power-up effect
                 powerUps.splice(i, 1); // Remove the power-up
 
-                // Emit event to trigger burst effect
-                // io.to(player.id).emit('powerUpCollected', { id: player.id });
+                // Emit event to trigger burst effect with the collected power-up type
                 wss.clients.forEach(client => {
                     if (client.readyState === WebSocket.OPEN && client.id === player.id) {
-                        client.send(JSON.stringify({ type: 'powerUpCollected', data: { id: player.id } }));
+                        client.send(
+                            JSON.stringify({
+                                type: 'powerUpCollected',
+                                data: { id: player.id, powerUpType: powerUp.type }
+                            })
+                        );
                     }
                 });
 
