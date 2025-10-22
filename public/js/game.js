@@ -273,20 +273,93 @@
 
     // Draw power-ups with glow and pulse effects
     function drawPowerUps(cameraOffsetX, cameraOffsetY) {
-        const pulseScale = 1.2;
-        const pulseSpeed = 0.05;
+        const time = Date.now() / 1000;
         for (let i = 0; i < powerUps.length; i++) {
             const powerUp = powerUps[i];
-            const pulse = 1 + Math.sin(Date.now() * pulseSpeed) * 0.1;
+            const pulse = 1 + Math.sin(time * 3) * 0.2;
+            const rotation = time * 2;
+
             context.save();
             context.translate(powerUp.x + cameraOffsetX, powerUp.y + cameraOffsetY);
-            context.scale(pulse, pulse);
-            context.fillStyle = powerUp.type === 'speed' ? 'green' : powerUp.type === 'invisibility' ? 'purple' : 'yellow';
-            context.shadowBlur = 20;
-            context.shadowColor = context.fillStyle;
+
+            // Determine colors based on type
+            let mainColor, glowColor, symbol;
+            if (powerUp.type === 'speed') {
+                mainColor = '#00ff00';
+                glowColor = '#00ff00';
+                symbol = '⚡'; // Lightning bolt
+            } else if (powerUp.type === 'invisibility') {
+                mainColor = '#9d4edd';
+                glowColor = '#c77dff';
+                symbol = '👁'; // Eye
+            } else { // shield
+                mainColor = '#ffd60a';
+                glowColor = '#ffc300';
+                symbol = '🛡'; // Shield
+            }
+
+            // Outer glow ring
+            const gradient = context.createRadialGradient(0, 0, 0, 0, 0, powerUp.radius * 3);
+            gradient.addColorStop(0, `${glowColor}88`);
+            gradient.addColorStop(0.5, `${glowColor}44`);
+            gradient.addColorStop(1, `${glowColor}00`);
+            context.fillStyle = gradient;
             context.beginPath();
-            context.arc(0, 0, powerUp.radius, 0, Math.PI * 2);
+            context.arc(0, 0, powerUp.radius * 3, 0, Math.PI * 2);
             context.fill();
+
+            // Rotating outer ring
+            context.save();
+            context.rotate(rotation);
+            context.strokeStyle = `${mainColor}aa`;
+            context.lineWidth = 2;
+            context.setLineDash([5, 5]);
+            context.beginPath();
+            context.arc(0, 0, powerUp.radius * 2, 0, Math.PI * 2);
+            context.stroke();
+            context.restore();
+
+            // Pulsating main orb
+            context.scale(pulse, pulse);
+
+            // Inner gradient
+            const innerGradient = context.createRadialGradient(
+                -powerUp.radius * 0.3, -powerUp.radius * 0.3, 0,
+                0, 0, powerUp.radius * 1.5
+            );
+            innerGradient.addColorStop(0, '#ffffff');
+            innerGradient.addColorStop(0.3, mainColor);
+            innerGradient.addColorStop(1, `${mainColor}cc`);
+
+            context.fillStyle = innerGradient;
+            context.shadowBlur = 30;
+            context.shadowColor = glowColor;
+            context.beginPath();
+            context.arc(0, 0, powerUp.radius * 1.5, 0, Math.PI * 2);
+            context.fill();
+
+            // Draw symbol/icon
+            context.shadowBlur = 0;
+            context.fillStyle = '#ffffff';
+            context.font = `${powerUp.radius * 2}px Arial`;
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(symbol, 0, 0);
+
+            // Sparkle effect
+            for (let j = 0; j < 3; j++) {
+                const sparkleAngle = rotation * 2 + (j * Math.PI * 2 / 3);
+                const sparkleDistance = powerUp.radius * 2.5;
+                const sparkleX = Math.cos(sparkleAngle) * sparkleDistance;
+                const sparkleY = Math.sin(sparkleAngle) * sparkleDistance;
+                const sparkleSize = 2 + Math.sin(time * 5 + j) * 1;
+
+                context.fillStyle = '#ffffff';
+                context.beginPath();
+                context.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+                context.fill();
+            }
+
             context.restore();
         }
     }
